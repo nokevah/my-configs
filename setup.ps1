@@ -1,4 +1,4 @@
-# setup.ps1 - Reporting Version
+# setup.ps1
 Write-Host "--- Starting Home Base Setup ---" -ForegroundColor Cyan
 
 # 1. Admin Check
@@ -7,42 +7,42 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     return
 }
 
-# 2. Module Setup
+# 2. Ensure WinGet DSC Module
 if (-not (Get-Module -ListAvailable Microsoft.WinGet.DSC)) {
     Write-Host "Installing Microsoft.WinGet.DSC..." -ForegroundColor Yellow
     Install-Module Microsoft.WinGet.DSC -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
 }
 Import-Module Microsoft.WinGet.DSC -ErrorAction SilentlyContinue
 
-# 3. Download
+# 3. Paths
 $rawUrl = "https://raw.githubusercontent.com/nokevah/my-configs/main/home-basics.dsc.yaml"
 $tempPath = "$env:TEMP\home-basics.dsc.yaml"
 
+# 4. Download
 try {
     Invoke-WebRequest -Uri $rawUrl -OutFile $tempPath -ErrorAction Stop
-    Write-Host "Configuration downloaded successfully." -ForegroundColor Gray
+    Write-Host "Configuration downloaded." -ForegroundColor Gray
 } catch {
-    Write-Host "ERROR: Could not reach GitHub. Check your URL." -ForegroundColor Red
+    Write-Host "ERROR: Could not download configuration from GitHub." -ForegroundColor Red
     return
 }
 
-# 4. Execute and Capture
-Write-Host "Applying configuration... Please wait." -ForegroundColor White
-$process = Start-Process winget -ArgumentList "configure -f `"$tempPath`" --accept-configuration-agreements" -Wait -PassThru -NoNewWindow
+# 5. Execute
+Write-Host "Applying configuration. This may take several minutes..." -ForegroundColor White
+$logFile = "$env:TEMP\winget_results.txt"
 
-# 5. Outcome Logic
-if ($process.ExitCode -eq 0) {
-    Write-Host "`n[SUCCESS] All configurations applied correctly." -ForegroundColor Green
+# Run winget configure and capture output
+$output = winget configure -f $tempPath --accept-configuration-agreements --disable-interactivity 2>&1 | Tee-Object -FilePath $logFile
+
+# 6. Result Check
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "`n[SUCCESS] All apps installed correctly." -ForegroundColor Green
 } else {
-    Write-Host "`n[FAILURE] The configuration finished with errors (Exit Code: $($process.ExitCode))." -ForegroundColor Red
-    Write-Host "Some apps may have failed to install. Checking logs..." -ForegroundColor Yellow
-    
-    # Optional: Display the specific winget log path for troubleshooting
-    $logPath = Get-ChildItem -Path "$env:TEMP\DiagOutputDir" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if ($logPath) {
-        Write-Host "Detailed logs can be found at: $($logPath.FullName)" -ForegroundColor Gray
-    }
+    Write-Host "`n[FAILURE] Errors occurred (Exit Code: $LASTEXITCODE)." -ForegroundColor Red
+    Write-Host "Summary of issues:" -ForegroundColor Yellow
+    $output | Where-Object { $_ -match "failed" -or $_ -match "error" } | ForEach-Object { Write-Host " -> $_" -ForegroundColor Yellow }
+    Write-Host "`nFull log saved to: $logFile" -ForegroundColor Gray
 }
 
-# 6. Cleanup
+# 7. Cleanup
 if (Test-Path $tempPath) { Remove-Item $tempPath }
