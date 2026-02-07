@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+properties:
+  resources:
+    # --- Web Browsers ---
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: Chrome
+      settings:
+        id: Google.Chrome
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: Firefox
+      settings:
+        id: Mozilla.Firefox
+        source: winget
+
+    # --- Productivity & Utilities ---
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: Office365
+      settings:
+        id: Microsoft.Office
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: AdobeReader
+      settings:
+        id: Adobe.Acrobat.Reader.64-bit
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: SevenZip
+      settings:
+        id: 7zip.7zip
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: PowerToys
+      settings:
+        id: Microsoft.PowerToys
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: OnePassword
+      settings:
+        id: AgileBits.1Password
+        source: winget
+
+    # --- Gaming & Hardware ---
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: BattleNet
+      settings:
+        id: Blizzard.BattleNet
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: NvidiaApp
+      settings:
+        id: NVIDIA.NVIDIAApp
+        source: winget
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: NZXTCam
+      settings:
+        id: NZXT.CAM
+        source: winget
+
+  configurationVersion: 0.2.0
