@@ -1,38 +1,48 @@
-# setup.ps1 - Hardened Version
+# setup.ps1 - Reporting Version
 Write-Host "--- Starting Home Base Setup ---" -ForegroundColor Cyan
 
-# 1. Check for Administrative Privileges
+# 1. Admin Check
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Error "This script must be run as Administrator."
     return
 }
 
-# 2. Ensure the WinGet DSC Module is installed AND loaded
+# 2. Module Setup
 if (-not (Get-Module -ListAvailable Microsoft.WinGet.DSC)) {
-    Write-Host "Installing Microsoft.WinGet.DSC module..." -ForegroundColor Yellow
-    Install-Module Microsoft.WinGet.DSC -Force -AllowClobber -Scope CurrentUser
+    Write-Host "Installing Microsoft.WinGet.DSC..." -ForegroundColor Yellow
+    Install-Module Microsoft.WinGet.DSC -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
 }
-# Force import to ensure the 'winget configure' provider is recognized in this session
 Import-Module Microsoft.WinGet.DSC -ErrorAction SilentlyContinue
 
-# 3. Define paths (Matching your 'nokevah/my-configs' repo)
+# 3. Download
 $rawUrl = "https://raw.githubusercontent.com/nokevah/my-configs/main/home-basics.dsc.yaml"
 $tempPath = "$env:TEMP\home-basics.dsc.yaml"
 
-# 4. Download the YAML
-Write-Host "Downloading configuration from GitHub..." -ForegroundColor Gray
 try {
     Invoke-WebRequest -Uri $rawUrl -OutFile $tempPath -ErrorAction Stop
+    Write-Host "Configuration downloaded successfully." -ForegroundColor Gray
 } catch {
-    Write-Error "Failed to download YAML. Check your URL or internet connection."
+    Write-Host "ERROR: Could not reach GitHub. Check your URL." -ForegroundColor Red
     return
 }
 
-# 5. Run the configuration
-Write-Host "Applying WinGet Configuration... this may take a while." -ForegroundColor Green
-winget configure -f $tempPath --accept-configuration-agreements --accept-package-agreements
+# 4. Execute and Capture
+Write-Host "Applying configuration... Please wait." -ForegroundColor White
+$process = Start-Process winget -ArgumentList "configure -f `"$tempPath`" --accept-configuration-agreements" -Wait -PassThru -NoNewWindow
+
+# 5. Outcome Logic
+if ($process.ExitCode -eq 0) {
+    Write-Host "`n[SUCCESS] All configurations applied correctly." -ForegroundColor Green
+} else {
+    Write-Host "`n[FAILURE] The configuration finished with errors (Exit Code: $($process.ExitCode))." -ForegroundColor Red
+    Write-Host "Some apps may have failed to install. Checking logs..." -ForegroundColor Yellow
+    
+    # Optional: Display the specific winget log path for troubleshooting
+    $logPath = Get-ChildItem -Path "$env:TEMP\DiagOutputDir" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($logPath) {
+        Write-Host "Detailed logs can be found at: $($logPath.FullName)" -ForegroundColor Gray
+    }
+}
 
 # 6. Cleanup
 if (Test-Path $tempPath) { Remove-Item $tempPath }
-
-Write-Host "--- Setup Complete! ---" -ForegroundColor Cyan
