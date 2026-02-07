@@ -16,11 +16,15 @@ properties:
     # --- Productivity & Utilities ---
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: Office365
+      directives:
+        securityContext: elevated
       settings:
         id: Microsoft.Office
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: AdobeReader
+      directives:
+        securityContext: elevated
       settings:
         id: Adobe.Acrobat.Reader.64-bit
         source: winget
@@ -31,11 +35,15 @@ properties:
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: PowerToys
+      directives:
+        securityContext: elevated
       settings:
         id: Microsoft.PowerToys
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: OnePassword
+      directives:
+        securityContext: elevated
       settings:
         id: AgileBits.1Password
         source: winget
@@ -43,16 +51,22 @@ properties:
     # --- Gaming & Hardware ---
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: BattleNet
+      directives:
+        securityContext: elevated
       settings:
         id: Blizzard.BattleNet
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: NvidiaApp
+      directives:
+        securityContext: elevated
       settings:
         id: NVIDIA.NVIDIAApp
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: NZXTCam
+      directives:
+        securityContext: elevated
       settings:
         id: NZXT.CAM
         source: winget
