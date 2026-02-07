@@ -1,69 +1,45 @@
-# setup.ps1 - The "Conflict Killer" Version
+# setup.ps1 - The "It Just Works" Version
+# No extra modules, no PowerShell 7 requirement. Standard Windows 11 compatible.
+
 Write-Host "--- Starting Home Base Setup ---" -ForegroundColor Cyan
 
-# 1. Admin Check
+# 1. Check for Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Error "This script must be run as Administrator."
-    return
+    Write-Error "Please right-click and 'Run as Administrator'."
+    exit
 }
 
-# 2. CONFLICT FIX: Deep Clean Existing Modules
-# The log showed "multiple locations" errors, so we must remove duplicates first.
-$moduleName = "Microsoft.WinGet.DSC"
-Write-Host "Checking for conflicting DSC modules..." -ForegroundColor Gray
+# 2. Define the App List (Add/Remove IDs here)
+$apps = @(
+    "Google.Chrome",
+    "Mozilla.Firefox",
+    "Microsoft.Office",
+    "Adobe.Acrobat.Reader.64-bit",
+    "7zip.7zip",
+    "Microsoft.PowerToys",
+    "AgileBits.1Password",
+    "Blizzard.BattleNet",
+    "NVIDIA.NVIDIAApp",
+    "NZXT.CAM"
+)
 
-# Unload from memory if active
-Remove-Module $moduleName -ErrorAction SilentlyContinue
-
-# Find and Uninstall ALL versions found on disk
-$existingModules = Get-Module -ListAvailable -Name $moduleName
-if ($existingModules) {
-    foreach ($mod in $existingModules) {
-        Write-Host " -> Removing conflict at: $($mod.ModuleBase)" -ForegroundColor Yellow
-        Uninstall-Module -Name $moduleName -RequiredVersion $mod.Version -Force -ErrorAction SilentlyContinue
-        
-        # Failsafe: If Uninstall doesn't delete the folder, we force it
-        if (Test-Path $mod.ModuleBase) {
-            Remove-Item -Path $mod.ModuleBase -Recurse -Force -ErrorAction SilentlyContinue
-        }
+# 3. The Install Loop
+foreach ($app in $apps) {
+    Write-Host "`nInstalling $app..." -ForegroundColor Yellow
+    
+    # We use 'winget install' directly, which is native to Windows 11.
+    # --accept-package-agreements: Auto-accepts licenses
+    # --accept-source-agreements: Auto-accepts Store agreements
+    # --scope machine: Installs for all users (usually better for home PCs)
+    $process = Start-Process winget -ArgumentList "install --id $app --accept-package-agreements --accept-source-agreements --scope machine --disable-interactivity" -Wait -PassThru -NoNewWindow
+    
+    if ($process.ExitCode -eq 0) {
+        Write-Host " [OK] $app installed successfully." -ForegroundColor Green
+    } elseif ($process.ExitCode -eq -1978335189) {
+        Write-Host " [SKIP] $app is already installed." -ForegroundColor Gray
+    } else {
+        Write-Host " [ERROR] $app failed with code $($process.ExitCode)." -ForegroundColor Red
     }
 }
 
-# 3. Clean Install of the Module
-Write-Host "Installing fresh Microsoft.WinGet.DSC module..." -ForegroundColor Yellow
-Install-Module $moduleName -Force -AllowClobber -Scope CurrentUser -Repository PSGallery -ErrorAction Stop
-Import-Module $moduleName -Force
-
-# 4. Download Configuration
-$rawUrl = "https://raw.githubusercontent.com/nokevah/my-configs/main/home-basics.dsc.yaml"
-$tempPath = "$env:TEMP\home-basics.dsc.yaml"
-
-try {
-    Invoke-WebRequest -Uri $rawUrl -OutFile $tempPath -ErrorAction Stop
-    Write-Host "Configuration downloaded." -ForegroundColor Gray
-} catch {
-    Write-Host "ERROR: Could not download configuration from GitHub." -ForegroundColor Red
-    return
-}
-
-# 5. Execute with Logging
-Write-Host "Applying configuration... (Interactivity Disabled)" -ForegroundColor White
-$logFile = "$env:TEMP\winget_results.txt"
-
-# Run winget configure
-# Note: --disable-interactivity bypasses the 'Y' prompts that caused errors before
-$output = winget configure -f $tempPath --accept-configuration-agreements --disable-interactivity 2>&1 | Tee-Object -FilePath $logFile
-
-# 6. Report Results
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "`n[SUCCESS] All apps installed correctly." -ForegroundColor Green
-} else {
-    Write-Host "`n[FAILURE] Errors occurred (Exit Code: $LASTEXITCODE)." -ForegroundColor Red
-    Write-Host "Summary of failures:" -ForegroundColor Yellow
-    # Filter output for readable errors
-    $output | Where-Object { $_ -match "failed" -or $_ -match "error" -or $_ -match "available in multiple locations" } | ForEach-Object { Write-Host " -> $_" -ForegroundColor Red }
-    Write-Host "`nFull log saved to: $logFile" -ForegroundColor Gray
-}
-
-# 7. Cleanup
-if (Test-Path $tempPath) { Remove-Item $tempPath }
+Write-Host "`n--- Setup Complete! ---" -ForegroundColor Cyan
